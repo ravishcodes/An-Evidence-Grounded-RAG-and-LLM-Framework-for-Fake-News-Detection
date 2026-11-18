@@ -147,6 +147,68 @@ with st.expander("📊 Research evaluation (upload labeled predictions)"):
         except Exception as exc:
             st.error(f"Could not evaluate CSV: {type(exc).__name__}: {exc}")
 
+with st.expander("🔬 Run a real labeled RAG evaluation (live API calls)"):
+    st.write("Upload an independently labeled CSV with columns **claim,actual_label**. This runs your deployed RAG on each claim and calculates real metrics. API usage may incur costs and take several minutes.")
+    st.download_button("Download evaluation input template", "claim,actual_label\n", "labeled_claims_template.csv", "text/csv", key="download_input_template")
+    batch_file = st.file_uploader("Labeled test claims CSV", type=["csv"], key="batch_input")
+    max_cases = st.number_input("Maximum claims this run", min_value=1, max_value=100, value=10, step=1)
+    if batch_file is not None:
+        try:
+            candidate = pd.read_csv(batch_file)
+            if not {"claim", "actual_label"}.issubset(candidate.columns):
+                st.error("CSV needs claim and actual_label columns")
+            elif candidate.empty:
+                st.warning("No claims supplied")
+            else:
+                candidate["actual_label"] = candidate["actual_label"].astype(str).str.strip().str.upper()
+                candidate["claim"] = candidate["claim"].fillna("").astype(str).str.strip()
+                if not candidate["actual_label"].isin(LABELS).all() or not candidate["claim"].str.len().between(1,1500).all():
+                    st.error("Fix invalid labels or empty/oversized claims before running")
+                else:
+                    st.caption(f"Ready: {len(candidate)} labeled claims; first {min(len(candidate),int(max_cases))} will run")
+                    if st.button("Run live evaluation", type="primary"):
+                        if not st.secrets.get("TAVILY_API_KEY") or not st.secrets.get("GROQ_API_KEY"):
+                            st.error("Configure both API keys in Streamlit Secrets")
+                        else:
+                            from research_eval import summarize_runs
+                            embedder, reranker = cached_rankers()
+                            runs=[]
+                            progress=st.progress(0)
+                            selected=candidate.head(int(max_cases))
+                            for i, row in enumerate(selected.itertuples(index=False)):
+                                try:
+                                    outcome=run_live_rag(row.claim,st.secrets["TAVILY_API_KEY"],st.secrets["GROQ_API_KEY"],embedder,reranker)
+                                    runs.append({"claim":row.claim,"actual_label":row.actual_label,"predicted_label":outcome["verdict"],"error":"","result_json":json.dumps(outcome,ensure_ascii=False)})
+                                except Exception as exc:
+                                    runs.append({"claim":row.claim,"actual_label":row.actual_label,"predicted_label":"","error":f"{type(exc).__name__}: {exc}","result_json":""})
+                                progress.progress((i+1)/len(selected))
+                            st.session_state["research_runs"] = runs
+        except Exception as exc:
+            st.error(f"Could not read input: {type(exc).__name__}: {exc}")
+    if st.session_state.get("research_runs"):
+        from research_eval import summarize_runs
+        all_runs=pd.DataFrame(st.session_state["research_runs"])
+        successful=all_runs[all_runs["error"]==""].copy()
+        st.metric("Successful / attempted", f"{len(successful)}/{len(all_runs)}")
+        if len(successful):
+            results, stats=summarize_runs(successful.to_dict("records"))
+            c1,c2,c3,c4=st.columns(4)
+            c1.metric("Accuracy",f"{stats['accuracy']:.1%}")
+            c2.metric("Macro F1",f"{stats['macro_f1']:.3f}")
+            c3.metric("Macro precision",f"{stats['macro_precision']:.3f}")
+            c4.metric("Macro recall",f"{stats['macro_recall']:.3f}")
+            st.metric("Abstention rate",f"{stats['abstention_rate']:.1%}")
+            st.dataframe(pd.DataFrame(stats["classification_report"]).T.loc[LABELS,["precision","recall","f1-score","support"]],use_container_width=True)
+            st.write("Confusion matrix (rows=actual, columns=predicted)")
+            st.dataframe(pd.DataFrame(stats["confusion_matrix"],index=LABELS,columns=LABELS),use_container_width=True)
+            st.write("Citation audit proxies (not human faithfulness assessment)")
+            st.json({k:v for k,v in stats.items() if k.endswith("_mean")})
+            st.download_button("Download evaluation metrics JSON",json.dumps(stats,indent=2),"research_metrics.json","application/json",key="download_research_metrics")
+        st.download_button("Download all run records CSV",all_runs.to_csv(index=False),"research_predictions.csv","text/csv",key="download_research_predictions")
+        if (all_runs["error"]!="").any():
+            st.warning("Failed API requests were excluded from accuracy calculations. Download the CSV to inspect them.")
+    st.caption("S1-S5 comparisons, retrieval Recall@k/MRR, confidence calibration, and temporal ablations require separate ground truth and controlled experimental runs; they are not claimed by this dashboard.")
+
 with st.expander("🧪 Previous ML classifiers (claim-only baselines)"):
     st.caption("These baseline labels are not evidence-grounded and are not directly comparable to the five-class RAG labels without a documented mapping.")
     if st.button("Run baseline classifiers"):
