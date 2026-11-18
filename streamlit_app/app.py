@@ -165,3 +165,46 @@ st.caption(
     "generated explanations may be incorrect. "
     "Verify important claims using original sources."
 )
+
+# Temporary hosted LLM connection test
+with st.expander("🔧 Test Hosted LLM Connection"):
+
+    if st.button("Test Hugging Face API"):
+
+        try:
+            from huggingface_hub import InferenceClient
+
+            token = st.secrets.get("HF_TOKEN")
+
+            if not token:
+                st.error(
+                    "HF_TOKEN is missing from Streamlit Secrets."
+                )
+            else:
+                client = InferenceClient(token=token)
+
+                with st.spinner("Testing hosted Qwen inference..."):
+                    response = client.chat_completion(
+                        model="Qwen/Qwen2.5-1.5B-Instruct",
+                        messages=[
+                            {
+                                "role": "user",
+                                "content": (
+                                    "Which city is the "
+                                    "Eiffel Tower located in?"
+                                )
+                            }
+                        ],
+                        max_tokens=80
+                    )
+
+                answer = response.choices[0].message.content
+
+                st.success("Hosted inference successful!")
+                st.write(answer)
+
+        except Exception as e:
+            st.error(
+                f"{type(e).__name__}: {str(e)}"
+            )
+
