@@ -12,6 +12,7 @@ st.set_page_config(
 
 BASE = Path(__file__).parent
 
+
 @st.cache_resource
 def load_models():
     binary = joblib.load(
@@ -22,7 +23,9 @@ def load_models():
     )
     return binary, six
 
+
 binary_model, six_model = load_models()
+
 
 @st.cache_data
 def load_evidence():
@@ -32,10 +35,13 @@ def load_evidence():
             return json.load(f).get("claims", {})
     return {}
 
+
 known_evidence = load_evidence()
+
 
 def normalize(text):
     return " ".join(str(text).lower().split())
+
 
 claim_index = {
     normalize(record.get("claim", "")): (cid, record)
@@ -43,77 +49,119 @@ claim_index = {
     if record.get("claim")
 }
 
+
 st.title("🔎 Evidence-Grounded Fake News Detection")
+
 st.caption(
-    "Research prototype | LIAR claim classification "
-    "and saved evidence retrieval"
+    "Research prototype | Claim classification "
+    "and evidence-grounded fact verification"
 )
 
-st.markdown(
-    "Enter a news claim to obtain a binary and "
-    "six-class classification."
+mode = st.radio(
+    "Select analysis mode",
+    [
+        "Existing ML Classifiers",
+        "Live RAG Fact Verification"
+    ],
+    horizontal=True
 )
 
 claim = st.text_area(
-    "Enter your claim",
+    "Enter your news claim",
     height=130,
-    placeholder="Example: Marijuana is less toxic than alcohol."
+    placeholder="Example: The Eiffel Tower is located in Berlin."
 )
 
-if st.button("Analyze Claim", type="primary"):
-    if not claim.strip():
-        st.warning("Please enter a claim.")
-    else:
-        binary = binary_model.predict([claim])[0]
-        six = six_model.predict([claim])[0]
 
-        col1, col2 = st.columns(2)
+if mode == "Existing ML Classifiers":
 
-        with col1:
-            st.metric("Binary prediction", binary)
+    st.info(
+        "This mode uses trained claim-only classifiers "
+        "and previously saved evidence."
+    )
 
-        with col2:
-            st.metric("Six-class prediction", six)
+    if st.button("Analyze Claim", type="primary"):
 
-        st.info(
-            "These are claim-only model predictions. "
-            "They are not independently verified facts."
-        )
+        if not claim.strip():
+            st.warning("Please enter a claim.")
 
-        match = claim_index.get(normalize(claim))
-
-        st.subheader("Evidence")
-
-        if match:
-            cid, record = match
-
-            st.success(
-                f"Saved evidence found for {cid}"
-            )
-
-            for i, item in enumerate(
-                record.get("evidence", [])[:5], 1
-            ):
-                with st.expander(
-                    f"Source {i}: {item.get('title', 'Untitled')}"
-                ):
-                    st.write(
-                        item.get("snippet", "")
-                    )
-                    url = item.get("url", "")
-                    if url:
-                        st.markdown(
-                            f"[Open source]({url})"
-                        )
         else:
-            st.warning(
-                "No saved evidence exists for this claim. "
-                "Live evidence retrieval has not yet "
-                "been integrated."
+            binary = binary_model.predict([claim])[0]
+            six = six_model.predict([claim])[0]
+
+            col1, col2 = st.columns(2)
+
+            with col1:
+                st.metric("Binary prediction", str(binary))
+
+            with col2:
+                st.metric("Six-class prediction", str(six))
+
+            st.info(
+                "These predictions are based on the claim text. "
+                "They are not independently verified facts."
             )
+
+            match = claim_index.get(normalize(claim))
+
+            st.subheader("Saved Evidence")
+
+            if match:
+                cid, record = match
+
+                st.success(
+                    f"Saved evidence found for {cid}"
+                )
+
+                for i, item in enumerate(
+                    record.get("evidence", [])[:5], 1
+                ):
+                    with st.expander(
+                        f"Source {i}: "
+                        f"{item.get('title', 'Untitled')}"
+                    ):
+                        st.write(item.get("snippet", ""))
+
+                        url = item.get("url", "")
+                        if url:
+                            st.link_button(
+                                "Open source",
+                                url
+                            )
+
+            else:
+                st.warning(
+                    "No saved evidence exists for this claim."
+                )
+
+
+else:
+
+    st.subheader("Live Evidence-Grounded Verification")
+
+    st.markdown(
+        "This mode will retrieve current web evidence, "
+        "rank relevant sources, and generate a "
+        "five-class fact-checking verdict."
+    )
+
+    st.info(
+        "Live RAG inference is being integrated. "
+        "The backend is not connected yet."
+    )
+
+    if st.button(
+        "Verify with Live Evidence",
+        type="primary",
+        disabled=True
+    ):
+        pass
+
 
 st.divider()
+
 st.caption(
-    "Research prototype — predictions may be incorrect. "
-    "Do not treat them as definitive fact-checks."
+    "Research prototype. Automated predictions and "
+    "generated explanations may be incorrect. "
+    "Verify important claims using original sources."
 )
