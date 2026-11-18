@@ -53,6 +53,48 @@ def _domain(url):
     return urlparse(url).netloc.lower().removeprefix("www.")
 
 
+def source_category(domain):
+    """Transparent domain-type heuristic; NOT an independent trustworthiness rating."""
+    domain = (domain or "").lower()
+    if domain.endswith((".gov", ".gov.in", ".gov.uk", ".edu", ".ac.uk")):
+        return "Government / academic domain"
+    if domain.endswith((".org", ".org.in")):
+        return "Organization domain (not automatically reliable)"
+    return "Other website (check original source)"
+
+
+def result_diagnostics(result):
+    """Evidence-strength indicators, not calibrated confidence or accuracy."""
+    evidence = result.get("evidence", [])
+    audit = result.get("audit", [])
+    cited = set(result.get("citations", []))
+    by_id = {a.get("id"): a for a in audit if isinstance(a, dict)}
+    supporting = sum(by_id[c].get("stance") == "SUPPORTS" for c in cited if c in by_id)
+    refuting = sum(by_id[c].get("stance") == "REFUTES" for c in cited if c in by_id)
+    mixed = sum(by_id[c].get("stance") == "MIXED" for c in cited if c in by_id)
+    cited_n = len(cited)
+    # Descriptive coverage: share of retrieved sources with an audited cited passage.
+    coverage = cited_n / len(evidence) if evidence else 0.0
+    verdict = result.get("verdict", "UNVERIFIED")
+    aligned = supporting if verdict == "TRUE" else refuting if verdict == "FALSE" else cited_n
+    # A deliberately simple, non-calibrated heuristic; not a probability of correctness.
+    strength = min(100, round(100 * (0.65 * min(aligned, 3) / 3 + 0.35 * coverage)))
+    if verdict == "UNVERIFIED":
+        strength = 0
+    return {
+        "evidence_strength_index": strength,
+        "score_definition": "Heuristic from aligned audited citations (65%) and citation coverage (35%); NOT model confidence, correctness probability or measured accuracy.",
+        "retrieved_sources": len(evidence),
+        "audited_sources": len(audit),
+        "cited_sources": cited_n,
+        "supporting_citations": supporting,
+        "refuting_citations": refuting,
+        "mixed_citations": mixed,
+        "citation_coverage_percent": round(100 * coverage, 1),
+        "temporal_coverage": "Not assessed: publication dates not reliably supplied",
+    }
+
+
 def retrieve_evidence(claim, tavily_key, embedder, reranker, limit=5):
     client = TavilyClient(api_key=tavily_key)
     response = client.search(query=claim, search_depth="advanced", max_results=10, include_answer=False)
@@ -93,6 +135,13 @@ def retrieve_evidence(claim, tavily_key, embedder, reranker, limit=5):
         item = dict(candidates[idx])
         item["id"] = f"E{index}"
         item["retrieval_score"] = round(float(score), 4)
+        item["bm25_raw"] = round(float(lexical[idx]), 4)
+        item["semantic_similarity"] = round(float(semantic[idx]), 4)
+        item["hybrid_normalized"] = round(float(hybrid[idx]), 4)
+        item["cross_encoder_raw"] = round(float(cross_scores[shortlist.index(idx)]), 4)
+        # Relative scores depend on this query's candidate set; not probabilities.
+        item["source_category"] = source_category(item["domain"])
+        item["published_date"] = None  # Tavily results here do not guarantee a publication date.
         result.append(item)
     return result
 
@@ -247,4 +296,7 @@ def verify_claim(claim, evidence, groq_key, model="openai/gpt-oss-20b", audited=
 def run_live_rag(claim, tavily_key, groq_key, embedder, reranker, model="openai/gpt-oss-20b"):
     evidence = retrieve_evidence(claim, tavily_key, embedder, reranker)
     audited = audit_evidence(claim, evidence, groq_key, model=model)
-    return verify_claim(claim, evidence, groq_key, model=model, audited=audited)
+    result = verify_claim(claim, evidence, groq_key, model=model, audited=audited)
+    result["diagnostics"] = result_diagnostics(result)
+    result["retrieved_at_utc"] = datetime.now(timezone.utc).isoformat()
+    return result
