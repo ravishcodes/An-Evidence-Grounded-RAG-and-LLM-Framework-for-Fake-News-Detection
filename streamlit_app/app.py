@@ -1,278 +1,97 @@
-
-import streamlit as st
-import joblib
 import json
+import sys
 from pathlib import Path
 
-st.set_page_config(
-    page_title="Evidence-Grounded Fake News Detection",
-    page_icon="🔎",
-    layout="wide"
-)
+import joblib
+import streamlit as st
 
-BASE = Path(__file__).parent
-
+st.set_page_config(page_title="Evidence-Grounded Fake News Detection", page_icon="🔎", layout="wide")
+BASE = Path(__file__).resolve().parent
+ROOT = BASE.parent
+sys.path.insert(0, str(ROOT / "rag_backend"))
 
 @st.cache_resource
 def load_models():
-    binary = joblib.load(
-        BASE / "binary_classifier.joblib"
-    )
-    six = joblib.load(
-        BASE / "six_class_classifier.joblib"
-    )
-    return binary, six
-
-
-binary_model, six_model = load_models()
-
+    return (joblib.load(BASE / "binary_classifier.joblib"),
+            joblib.load(BASE / "six_class_classifier.joblib"))
 
 @st.cache_data
-def load_evidence():
+def load_saved_evidence():
     path = BASE / "liar_targeted_evidence.json"
     if path.exists():
-        with open(path, encoding="utf-8") as f:
+        with path.open(encoding="utf-8") as f:
             return json.load(f).get("claims", {})
     return {}
 
-
-known_evidence = load_evidence()
-
-
-def normalize(text):
-    return " ".join(str(text).lower().split())
-
-
-claim_index = {
-    normalize(record.get("claim", "")): (cid, record)
-    for cid, record in known_evidence.items()
-    if record.get("claim")
-}
-
+@st.cache_resource(show_spinner="Loading evidence ranking models (first run may take a few minutes)...")
+def load_live_rankers():
+    from live_rag import load_rankers
+    return load_rankers()
 
 st.title("🔎 Evidence-Grounded Fake News Detection")
+st.caption("Live evidence-grounded fact checking | Research prototype")
+claim = st.text_area("Enter a claim to verify", height=130, placeholder="Example: Modi is the president of India")
 
-st.caption(
-    "Research prototype | Claim classification "
-    "and evidence-grounded fact verification"
-)
+if st.button("🔎 Verify with Live Evidence", type="primary"):
+    if not claim.strip():
+        st.warning("Please enter a claim.")
+    elif len(claim) > 1500:
+        st.warning("Please keep your claim under 1,500 characters.")
+    elif not st.secrets.get("TAVILY_API_KEY") or not st.secrets.get("GROQ_API_KEY"):
+        st.error("TAVILY_API_KEY and GROQ_API_KEY must be configured in Streamlit Secrets.")
+    else:
+        try:
+            from live_rag import run_live_rag
+            with st.spinner("Searching live sources, ranking evidence, and verifying the claim..."):
+                embedder, reranker = load_live_rankers()
+                result = run_live_rag(claim.strip(), st.secrets["TAVILY_API_KEY"],
+                                      st.secrets["GROQ_API_KEY"], embedder, reranker)
+            st.session_state["rag_result"] = result
+            st.session_state["rag_claim"] = claim.strip()
+        except Exception as exc:
+            st.error(f"Live verification failed: {type(exc).__name__}: {exc}")
 
-mode = st.radio(
-    "Select analysis mode",
-    [
-        "Existing ML Classifiers",
-        "Live RAG Fact Verification"
-    ],
-    horizontal=True
-)
+if "rag_result" in st.session_state:
+    result = st.session_state["rag_result"]
+    st.subheader("Evidence-grounded verdict")
+    st.caption(f"Claim: {st.session_state.get('rag_claim', '')}")
+    st.metric("Verdict", result["verdict"].replace("_", " "))
+    st.write(result["explanation"])
+    st.caption(f"Hosted inference model: {result['model']}")
+    evidence = result.get("evidence", [])
+    cited = set(result.get("citations", []))
+    st.subheader("Retrieved web evidence")
+    if not evidence:
+        st.warning("No usable web evidence was retrieved.")
+    for item in evidence:
+        marker = " • Cited by model" if item["id"] in cited else " • Retrieved, not cited"
+        with st.expander(f"{item['id']}: {item['title']}{marker}"):
+            st.write(item["snippet"])
+            st.link_button("Open original source", item["url"])
+    st.caption("Citations are model-selected and ID-checked, but not independently validated for factual support. Verify important claims against original sources.")
 
-claim = st.text_area(
-    "Enter your news claim",
-    height=130,
-    placeholder="Example: The Eiffel Tower is located in Berlin."
-)
-
-
-if mode == "Existing ML Classifiers":
-
-    st.info(
-        "This mode uses trained claim-only classifiers "
-        "and previously saved evidence."
-    )
-
-    if st.button("Analyze Claim", type="primary"):
-
+with st.expander("Previous ML classifiers (claim-only baseline)"):
+    st.write("These models predict labels from the claim text without live evidence verification.")
+    if st.button("Run baseline classifiers"):
         if not claim.strip():
-            st.warning("Please enter a claim.")
-
+            st.warning("Enter a claim first.")
         else:
-            binary = binary_model.predict([claim])[0]
-            six = six_model.predict([claim])[0]
-
-            col1, col2 = st.columns(2)
-
-            with col1:
-                st.metric("Binary prediction", str(binary))
-
-            with col2:
-                st.metric("Six-class prediction", str(six))
-
-            st.info(
-                "These predictions are based on the claim text. "
-                "They are not independently verified facts."
-            )
-
-            match = claim_index.get(normalize(claim))
-
-            st.subheader("Saved Evidence")
-
-            if match:
-                cid, record = match
-
-                st.success(
-                    f"Saved evidence found for {cid}"
-                )
-
-                for i, item in enumerate(
-                    record.get("evidence", [])[:5], 1
-                ):
-                    with st.expander(
-                        f"Source {i}: "
-                        f"{item.get('title', 'Untitled')}"
-                    ):
-                        st.write(item.get("snippet", ""))
-
-                        url = item.get("url", "")
-                        if url:
-                            st.link_button(
-                                "Open source",
-                                url
-                            )
-
-            else:
-                st.warning(
-                    "No saved evidence exists for this claim."
-                )
-
-
-else:
-
-    st.subheader("Live Evidence-Grounded Verification")
-
-    st.markdown(
-        "This mode will retrieve current web evidence, "
-        "rank relevant sources, and generate a "
-        "five-class fact-checking verdict."
-    )
-
-    st.info(
-        "Live RAG inference is being integrated. "
-        "The backend is not connected yet."
-    )
-
-    if st.button(
-        "Verify with Live Evidence",
-        type="primary",
-        disabled=True
-    ):
-        pass
-
+            try:
+                binary_model, six_model = load_models()
+                a, b = st.columns(2)
+                a.metric("Binary prediction", str(binary_model.predict([claim])[0]))
+                b.metric("Six-class prediction", str(six_model.predict([claim])[0]))
+                index = {" ".join(str(v.get("claim", "")).lower().split()): (k, v)
+                         for k, v in load_saved_evidence().items() if v.get("claim")}
+                match = index.get(" ".join(claim.lower().split()))
+                if match:
+                    st.write("Saved evidence for", match[0])
+                    for item in match[1].get("evidence", [])[:5]:
+                        st.write(item.get("title", "Untitled"), item.get("snippet", ""))
+                        if item.get("url", "").startswith(("https://", "http://")):
+                            st.link_button("Open saved source", item["url"])
+            except Exception as exc:
+                st.error(f"Baseline prediction failed: {type(exc).__name__}: {exc}")
 
 st.divider()
-
-st.caption(
-    "Research prototype. Automated predictions and "
-    "generated explanations may be incorrect. "
-    "Verify important claims using original sources."
-)
-
-
-
-
-# Temporary test: Discover and test Groq models
-with st.expander("🔧 Test Groq LLM Connection"):
-
-    if st.button("Find Working Groq Model"):
-
-        try:
-            from groq import Groq
-
-            token = st.secrets.get("GROQ_API_KEY")
-
-            if not token:
-                st.error("GROQ_API_KEY is missing.")
-
-            else:
-                client = Groq(api_key=token)
-
-                with st.spinner("Fetching Groq models..."):
-                    models = client.models.list()
-
-                available = [
-                    model.id
-                    for model in models.data
-                    if getattr(model, "active", True)
-                ]
-
-                st.success(
-                    f"Found {len(available)} active models."
-                )
-
-                with st.expander("Available model IDs"):
-                    for model_id in available:
-                        st.write(model_id)
-
-                # Prefer smaller general-purpose chat models.
-                preferred = [
-                    "llama-3.1-8b-instant",
-                    "llama-3.3-70b-versatile",
-                    "openai/gpt-oss-20b",
-                    "openai/gpt-oss-120b"
-                ]
-
-                ordered = [
-                    name for name in preferred
-                    if name in available
-                ]
-
-                if not ordered:
-                    st.warning(
-                        "No preferred chat model was found. "
-                        "Check the available model IDs."
-                    )
-
-                else:
-                    for model_id in ordered:
-
-                        try:
-                            with st.spinner(
-                                f"Testing {model_id}..."
-                            ):
-                                response = (
-                                    client.chat.completions.create(
-                                        model=model_id,
-                                        messages=[
-                                            {
-                                                "role": "user",
-                                                "content": (
-                                                    "Which city is the "
-                                                    "Eiffel Tower located in? "
-                                                    "Answer briefly."
-                                                )
-                                            }
-                                        ],
-                                        temperature=0,
-                                        max_tokens=100
-                                    )
-                                )
-
-                            answer = (
-                                response.choices[0]
-                                .message.content
-                            )
-
-                            st.success(
-                                f"WORKING MODEL: {model_id}"
-                            )
-
-                            st.write(answer)
-                            break
-
-                        except Exception as error:
-                            st.warning(
-                                f"{model_id}: "
-                                f"{type(error).__name__}: "
-                                f"{str(error)[:200]}"
-                            )
-
-        except Exception as error:
-            st.error(
-                f"{type(error).__name__}: {str(error)}"
-            )
-
-
-
-        except Exception as error:
-            st.error(
-                f"{type(error).__name__}: {error}"
-            )
+st.caption("Research prototype. A generated verdict is not a definitive fact-check. Search results and external model output can be incomplete or misleading.")
