@@ -1,0 +1,9 @@
+numpy
+torch
+transformers
+accelerate
+sentence-transformers
+rank-bm25
+tavily-python
+requests
+scikit-learn

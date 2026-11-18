@@ -1,0 +1,59 @@
+{
+  "claim": "The Eiffel Tower is located in Berlin, Germany.",
+  "claim_date": null,
+  "verdict": "FALSE",
+  "explanation": "The Eiffel Tower is located in Paris, France, not Berlin, Germany.",
+  "citations": [
+    {
+      "evidence_id": "E3",
+      "title": "[FREE] In what city and country can you find the Eiffel Tower?\n\nA. London, England \nB. Berlin, Germany \nC. Paris, - brainly.com",
+      "url": "https://brainly.com/question/48005306",
+      "supporting_text": "The Eiffel Tower is an iconic landmark located in Paris",
+      "stance": "REFUTES"
+    },
+    {
+      "evidence_id": "E4",
+      "title": "Eiffel Tower - Wikipedia",
+      "url": "https://en.wikipedia.org/wiki/Eiffel_Tower",
+      "supporting_text": "The Eiffel Tower (/ˈ aɪ f əl/ⓘ_EYE-fəl_; French: _Tour Eiffel_( \"Help:IPA/French\")ⓘ) is a lattice tower on the Champ de Mars in Paris",
+      "stance": "REFUTES"
+    }
+  ],
+  "evidence_count": 5,
+  "retrieved_evidence": [
+    {
+      "title": "Copies, replicas and reproductions of the Eiffel Tower in Germany",
+      "url": "https://www.wonders-of-the-world.net/Eiffel-Tower/Repliques/Replicas-of-the-Eiffel-tower-in-Germany.php",
+      "content": "# Copies of the Eiffel tower in Germany\n\n  \n\n﻿\n\nReplica of Berlin Replica of Berlin\n\n#### Replica of Berlin\n\nReplica of Berlin\n\nReplica of the Eiffel tower in Berlin (Germany)\n\nBerlin\n\nGermany has several copies of the Eiffel Tower on its territory. This one is in Berlin, in front of the Center Francais of Berlin, which was an institution of the French Military Government of Berlin, an instrument in the propagation of the French culture in the former French sector of Berlin Now become a hotel, the francophile past from the hotel is found in the structure imitating the Eiffel Tower found in front of the hotel. [...] Replica of the Eiffel tower in Berlin (Germany)\n\nBerlin\n\nThis metal structure is not really a copy of the Eiffel Tower but its architecture is clearly inspired. She is in Berlin, Germany. It is a large telephone pylon whose shape recalls the upper part of the Eiffel Tower, the one between the 2nd and 3rd floor. As such it does not have four separate pillars, which is a characteristic of the lower part of the tower, and its intermediate floor is of a very particular style. These are two large, enclosed and glazed galleries, perfectly square, large and superimposed. As we see in the photo it is the lower gallery which is the smallest. The top of the tower also has an observation gallery and it is probably this one that is the most similar of the 3rd floor of the Eiffel Tower. [...] This is a very well done copy. It is not free of defects of course, but the general overview is good, it really looks like the original. Among the defects are the 4 pillars that do not m",
+      "published_date": null
+    },
+    {
+      "title": "Berlin's (smaller!) Eiffel Tower - Review of Berliner Funkturm, Berlin, Germany",
+      "url": "https://www.tripadvisor.com/ShowUserReviews-g187323-d1795972-r461211528-Berliner_Funkturm-Berlin.html",
+      "content": "Once you've paid a few euros you take the lift to the open air viewing platform and enjoy the view of West Berlin, so long as you are not afraid of heights!",
+      "published_date": null
+    },
+    {
+      "title": "[FREE] In what city and country can you find the Eiffel Tower?\n\nA. London, England \nB. Berlin, Germany \nC. Paris, - brainly.com",
+      "url": "https://brainly.com/question/48005306",
+      "content": "## Explanation\n\nThe Eiffel Tower is an iconic landmark located in Paris, France. It was completed in 1889 as the entrance arch to the 1889 World's Fair, known as the Exposition Universelle, which celebrated the 100th anniversary of the French Revolution. The tower was designed by engineer Gustave Eiffel and stands approximately 300 meters tall (1,083 feet).\n\nParis is not only the capital city of France but also its largest city, known for its art, history, and architecture. The Eiffel Tower has become a global symbol of France, attracting millions of visitors each year.\n\nThe correct answer is C. Paris, France.\n\n## Examples & Evidence [...] ## Examples & Evidence\n\nThe Eiffel Tower can be compared to other famous landmarks, like the Statue of Liberty in the United States or the Big Ben in London, as they all represent the cultural identity of their respective cities.\n\nThe Eiffel Tower was specifically built for the 1889 World's Fair to demonstrate France's industrial prowess, and it has historical significance due to the events surrounding its construction during the late 19th century.\n\nVideo 6\n\nVideo 7\n\nVideo 8\n\nVideo 9\n\n0:00\n\n/\n\n0:15\n\nKeep Watching\n\nRead More\n\n### mckinneypaige438 has a question! Can you help?\n\nAdd your answer See Expert-Verified Answer [...] ## Textbook &Expert-Verified⬈(opens in a new tab)\n\n    The Western World - Daily Readings on Geography - Joel Quam & G. Scott Campbell  \n    A World Perspective of Art History: 1400CE to the 21st Century - Deborah Gustlin, Zoe Gustlin  \n    History of Modern and Contemporary Art - Deborah Gustlin, Zoe Gustlin  \n\nUpload",
+      "published_date": null
+    },
+    {
+      "title": "Eiffel Tower - Wikipedia",
+      "url": "https://en.wikipedia.org/wiki/Eiffel_Tower",
+      "content": "The Eiffel Tower (/ˈ aɪ f əl/ⓘ_EYE-fəl_; French: _Tour Eiffel_( \"Help:IPA/French\")ⓘ) is a lattice tower on the Champ de Mars in Paris, France. It is named after the engineer Gustave Eiffel, whose company designed and built the tower from 1887 to 1889.\n\nImage 8\n\nThe Eiffel Tower in Night View [...] After some debate about the exact location of the tower, a contract was signed on 8 January 1887. Eiffel signed it acting in his own capacity rather than as the representative of his company, the contract granting him 1.5 million francs toward the construction costs: less than a quarter of the estimated 6.5 million francs. Eiffel was to receive all income from the commercial exploitation of the tower during the exhibition and for the next 20 years. He later established a separate company to manage the tower, putting up half the necessary capital himself.() [...] By 1918, it had become a symbol of Paris and of France after Guillaume Apollinaire wrote a nationalist poem in the shape of the tower (a calligram) to express his feelings about the war against Germany.() Today, it is widely considered to be a remarkable piece of structural art, and is often featured in films and literature.\n\n### Construction\n\nImage 12\n\nFoundations of the Eiffel Tower, photographed in 1887",
+      "published_date": null
+    },
+    {
+      "title": "German Consulate General Houston on Facebook: \"Did you know? Berlin has its own “Eiffel Tower”? On September 3, 1926, the Berlin Funkturm officiall…\"",
+      "url": "https://www.facebook.com/GermanConsulateHouston/posts/did-you-know-berlin-has-its-own-eiffel-tower-on-september-3-1926-the-berlin-funk/1545597010927928",
+      "content": "# German Consulate General Houston on Facebook: \"Did you know? Berlin has its own “Eiffel Tower”? On September 3, 1926, the Berlin Funkturm officiall…\"\n\nDid you know? Berlin has its own “Eiffel Tower”? \nOn September 3, 1926, the Berlin Funkturm officially opened at the German Radio Exhibition in Westend.\nAt more than 146 meters (about 479 ft), the tower quickly became a landmark — and an important part of the history of radio and television in Germany.\nKnown affectionately as the “Langer Lulatsch” (“Long Skinny One”), it remains one of Berlin’s most recognizable sights. \nWould you go up?\n\n- Author: German Consulate General Houston\n- Posted: 2026-09-03T14:00:38+00:00\n- Shared link: \n- Links: \n- Reactions: 82\n- Comment count: 10\n- Shares: 13\n- Privacy: Public\n\n## Comments [...] - German Consulate General Houston: :)\n  - German Consulate General Houston: Nancy M. Aulbach bitte schicke uns die Fotos vom Ausblick :) [...] - Sean Ketchem: The tower was the site of the very first regular television broadcasts in 1936, and a reason why East Germany erected a much taller TV tower to try to one-up West Berlin.\n- Sean White: The funkturm. That, and the traffic on A115, is how you know you're in Berlin...\n- Angelika von Werder: Lived in the \"Europäischer Hof\"-Hotel nearby for 3 Month in 1970, my Husband was Food-Director and our Flat not finished !! So this Television-Tower I do remember my whole life !!!\n- Marion Southall: Berlin it is the Funkturm\n- Jones Geoff Cheryl: We did go up!\n- Christel Swanner: Many times! Grew up in West Berlin not far from there ! Love my Berlin, still have",
+      "published_date": null
+    }
+  ],
+  "processing_seconds": 4.52,
+  "checked_at": "2026-11-18T09:28:08.859578+00:00",
+  "pipeline": "Live Tavily + Hybrid Retrieval + Qwen V3",
+  "citation_validation_method": "explicit_location_statement"
+}

@@ -1,0 +1,114 @@
+{
+  "retrieve_evidence": {
+    "global_dependencies": [
+      "BM25Okapi",
+      "credibility",
+      "embedder",
+      "minmax",
+      "np",
+      "re",
+      "reranker",
+      "tavily",
+      "temporal_score"
+    ],
+    "unresolved_names": [
+      "add",
+      "append",
+      "argsort",
+      "encode",
+      "findall",
+      "get",
+      "get_scores",
+      "lower",
+      "predict",
+      "search",
+      "sort"
+    ],
+    "nonlocal_dependencies": []
+  },
+  "clean_evidence": {
+    "global_dependencies": [
+      "BLOCKED_PATTERNS"
+    ],
+    "unresolved_names": [
+      "add",
+      "append",
+      "get",
+      "lower",
+      "strip"
+    ],
+    "nonlocal_dependencies": []
+  },
+  "generate_json_v3": {
+    "global_dependencies": [
+      "json",
+      "llm",
+      "llm_tokenizer",
+      "re",
+      "torch"
+    ],
+    "unresolved_names": [
+      "IGNORECASE",
+      "JSONDecodeError",
+      "JSONDecoder",
+      "apply_chat_template",
+      "decode",
+      "device",
+      "eos_token_id",
+      "eval",
+      "finditer",
+      "generate",
+      "inference_mode",
+      "items",
+      "parameters",
+      "raw_decode",
+      "shape",
+      "start",
+      "strip",
+      "sub",
+      "to"
+    ],
+    "nonlocal_dependencies": []
+  },
+  "verify_claim_v3_improved": {
+    "global_dependencies": [
+      "ALLOWED_VERDICTS",
+      "clean_evidence",
+      "generate_json_v3"
+    ],
+    "unresolved_names": [
+      "append",
+      "get",
+      "join",
+      "strip",
+      "upper"
+    ],
+    "nonlocal_dependencies": []
+  },
+  "verify_claim_live": {
+    "global_dependencies": [
+      "BASE",
+      "VALID_VERDICTS",
+      "clean_evidence",
+      "datetime",
+      "json",
+      "retrieve_evidence",
+      "time",
+      "timezone",
+      "verify_claim_v3_improved"
+    ],
+    "unresolved_names": [
+      "add",
+      "append",
+      "dump",
+      "get",
+      "isoformat",
+      "now",
+      "strip",
+      "time",
+      "upper",
+      "utc"
+    ],
+    "nonlocal_dependencies": []
+  }
+}
