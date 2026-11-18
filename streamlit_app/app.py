@@ -69,6 +69,15 @@ if "rag_result" in st.session_state:
             st.write(item["snippet"])
             st.link_button("Open original source", item["url"])
     st.caption("Citations are model-selected and ID-checked, but not independently validated for factual support. Verify important claims against original sources.")
+    
+    # Download the latest fact-checking result
+    st.download_button(
+        label="📥 Download Fact-Check Result (JSON)",
+        data=json.dumps(result, indent=2, ensure_ascii=False, default=str),
+        file_name="fact_check_result.json",
+        mime="application/json",
+        key="download_fact_check"
+    )
 
 with st.expander("Previous ML classifiers (claim-only baseline)"):
     st.write("These models predict labels from the claim text without live evidence verification.")
