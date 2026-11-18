@@ -166,45 +166,105 @@ st.caption(
     "Verify important claims using original sources."
 )
 
-# Temporary hosted LLM connection test
+
+# Temporary test: discover available hosted LLMs
 with st.expander("🔧 Test Hosted LLM Connection"):
 
-    if st.button("Test Hugging Face API"):
+    if st.button("Find Available Models"):
 
         try:
-            from huggingface_hub import InferenceClient
+            from huggingface_hub import HfApi, InferenceClient
 
             token = st.secrets.get("HF_TOKEN")
 
             if not token:
-                st.error(
-                    "HF_TOKEN is missing from Streamlit Secrets."
-                )
+                st.error("HF_TOKEN is missing.")
             else:
-                client = InferenceClient(token=token)
+                api = HfApi(token=token)
 
-                with st.spinner("Testing hosted Qwen inference..."):
-                    response = client.chat_completion(
-                        model="Qwen/Qwen2.5-1.5B-Instruct",
-                        messages=[
-                            {
-                                "role": "user",
-                                "content": (
-                                    "Which city is the "
-                                    "Eiffel Tower located in?"
+                candidates = [
+                    "Qwen/Qwen2.5-1.5B-Instruct",
+                    "Qwen/Qwen2.5-7B-Instruct",
+                    "Qwen/Qwen3-4B-Instruct-2507",
+                    "Qwen/Qwen3-8B",
+                    "meta-llama/Llama-3.1-8B-Instruct"
+                ]
+
+                available = []
+
+                with st.spinner("Checking inference providers..."):
+                    for model in candidates:
+                        try:
+                            info = api.model_info(
+                                model,
+                                expand=["inferenceProviderMapping"]
+                            )
+
+                            mapping = getattr(
+                                info,
+                                "inference_provider_mapping",
+                                None
+                            )
+
+                            if mapping:
+                                available.append(model)
+                                st.write(
+                                    f"Available: {model}"
                                 )
-                            }
-                        ],
-                        max_tokens=80
+
+                        except Exception as error:
+                            st.warning(
+                                f"Could not check {model}: "
+                                f"{type(error).__name__}"
+                            )
+
+                if available:
+                    st.success(
+                        f"Found {len(available)} models "
+                        "with provider mappings."
                     )
 
-                answer = response.choices[0].message.content
+                    client = InferenceClient(token=token)
 
-                st.success("Hosted inference successful!")
-                st.write(answer)
+                    for model in available:
+                        try:
+                            response = client.chat_completion(
+                                model=model,
+                                messages=[
+                                    {
+                                        "role": "user",
+                                        "content": (
+                                            "Reply with only the city "
+                                            "where the Eiffel Tower is located."
+                                        )
+                                    }
+                                ],
+                                max_tokens=80
+                            )
 
-        except Exception as e:
+                            st.success(
+                                f"Working model: {model}"
+                            )
+
+                            st.write(
+                                response.choices[0].message.content
+                            )
+
+                            break
+
+                        except Exception as error:
+                            st.warning(
+                                f"{model}: "
+                                f"{type(error).__name__}: "
+                                f"{str(error)[:250]}"
+                            )
+                else:
+                    st.error(
+                        "No provider mappings found for "
+                        "the candidate models."
+                    )
+
+        except Exception as error:
             st.error(
-                f"{type(e).__name__}: {str(e)}"
+                f"{type(error).__name__}: {error}"
             )
-
