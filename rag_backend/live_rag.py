@@ -79,11 +79,14 @@ def result_diagnostics(result):
     aligned = supporting if verdict == "TRUE" else refuting if verdict == "FALSE" else cited_n
     # A deliberately simple, non-calibrated heuristic; not a probability of correctness.
     strength = min(100, round(100 * (0.65 * min(aligned, 3) / 3 + 0.35 * coverage)))
+    # This score measures evidence backing the *verdict*, not source relevance.
+    # Keep zero for an abstention, but report retrieval relevance separately.
     if verdict == "UNVERIFIED":
         strength = 0
     return {
         "evidence_strength_index": strength,
         "score_definition": "Heuristic from aligned audited citations (65%) and citation coverage (35%); NOT model confidence, correctness probability or measured accuracy.",
+        "retrieval_relevance_index": round(100 * sum(max(0, min(1, float(e.get("retrieval_score", 0)))) for e in evidence) / len(evidence)) if evidence else 0,
         "retrieved_sources": len(evidence),
         "audited_sources": len(audit),
         "cited_sources": cited_n,
@@ -97,10 +100,18 @@ def result_diagnostics(result):
 
 def retrieve_evidence(claim, tavily_key, embedder, reranker, limit=5):
     client = TavilyClient(api_key=tavily_key)
-    response = client.search(query=claim, search_depth="advanced", max_results=10, include_answer=False)
+    # Search the original claim and a neutral verification query to reduce
+    # dependence on pages that merely repeat the claim wording.
+    queries = [claim]
+    if len(claim.split()) <= 18:
+        queries.append(f"fact check {claim} official source")
+    search_results = []
+    for query in queries:
+        response = client.search(query=query, search_depth="advanced", max_results=10, include_answer=False)
+        search_results.extend(response.get("results", []))
     candidates = []
     seen = set()
-    for item in response.get("results", []):
+    for item in search_results:
         url = str(item.get("url", "")).strip()
         content = str(item.get("content", "")).strip()
         if not url.startswith(("https://", "http://")) or not content or url in seen:
@@ -159,7 +170,11 @@ def audit_evidence(claim, evidence, groq_key, model="openai/gpt-oss-20b"):
         "task": "Evaluate each excerpt against the claim independently. Return one item per source. "
                 "stance must be SUPPORTS, REFUTES, MIXED, or INSUFFICIENT. "
                 "A quote must be copied verbatim from the excerpt and directly relevant to the claim. "
-                "REFUTES requires an explicit factual contradiction of the claim, "
+                "REFUTES includes an affirmative factual contradiction, including an "
+                "authoritative source identifying the actual holder of an exclusive "
+                "office (e.g., president of a country) as someone other than the person "
+                "named in the claim, or identifying that named person's incompatible "
+                "current office. Explain the contradiction, do not infer from silence. "
                 "NOT merely a related fact, an article about a different event, "
                 "or the absence of reporting. For a claim about a recent discovery, "
                 "an older article about a bunker is INSUFFICIENT, not REFUTES. "
@@ -223,7 +238,13 @@ def verify_claim(claim, evidence, groq_key, model="openai/gpt-oss-20b", audited=
         "Use only audited excerpts and cite at most 3 source IDs. "
         "If evidence supports and refutes the same claim without resolution, choose UNVERIFIED. "
         "Crucial distinction: FALSE requires affirmative counterevidence that "
-        "directly contradicts the claim. If sources merely do not report or "
+        "directly contradicts the claim. For claims assigning an exclusive public "
+        "office or identity to a person, an authoritative source identifying the "
+        "actual officeholder as another person is affirmative counterevidence. "
+        "A source identifying the named person as the holder of a different office "
+        "can contribute to refutation, but only if the offices are incompatible "
+        "and the claim's time context is clear. Cite the actual counterevidence. "
+        "If sources merely do not report or "
         "mention a claimed event, choose UNVERIFIED, not FALSE. "
         "An unrelated structure or historical story is not a refutation of a "
         "newly claimed discovery. Keep explanation under 130 words."
@@ -266,7 +287,13 @@ def verify_claim(claim, evidence, groq_key, model="openai/gpt-oss-20b", audited=
         verdict, explanation = "UNVERIFIED", "No audited citation refutes the claim. " + explanation
     # Conservative post-check: silence in sources cannot establish falsity.
     # Particularly important for claims using relative time (e.g., "yesterday").
-    if verdict == "FALSE" and ABSENCE_ARGUMENTS.search(explanation):
+    # Only downgrade absence-based explanations when there is no affirmative
+    # audited refutation. A valid counterexample must not be discarded merely
+    # because the explanation also says "no evidence".
+    if verdict == "FALSE" and ABSENCE_ARGUMENTS.search(explanation) and not any(
+        approved[c]["stance"] == "REFUTES" and not ABSENCE_ARGUMENTS.search(approved[c]["quote"])
+        for c in citations
+    ):
         verdict = "UNVERIFIED"
         explanation = _insufficient_explanation(
             "The generated refutation relied on missing reports or confirmation."
