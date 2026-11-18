@@ -167,102 +167,63 @@ st.caption(
 )
 
 
-# Temporary test: discover available hosted LLMs
-with st.expander("🔧 Test Hosted LLM Connection"):
 
-    if st.button("Find Available Models"):
+# Temporary test: Groq hosted inference
+with st.expander("🔧 Test Groq LLM Connection"):
+
+    if st.button("Test Groq API"):
 
         try:
-            from huggingface_hub import HfApi, InferenceClient
+            from groq import Groq
 
-            token = st.secrets.get("HF_TOKEN")
+            token = st.secrets.get("GROQ_API_KEY")
 
             if not token:
-                st.error("HF_TOKEN is missing.")
+                st.error(
+                    "GROQ_API_KEY is missing from Streamlit Secrets."
+                )
+
             else:
-                api = HfApi(token=token)
+                client = Groq(api_key=token)
 
-                candidates = [
-                    "Qwen/Qwen2.5-1.5B-Instruct",
-                    "Qwen/Qwen2.5-7B-Instruct",
-                    "Qwen/Qwen3-4B-Instruct-2507",
-                    "Qwen/Qwen3-8B",
-                    "meta-llama/Llama-3.1-8B-Instruct"
-                ]
+                with st.spinner("Connecting to Groq..."):
 
-                available = []
-
-                with st.spinner("Checking inference providers..."):
-                    for model in candidates:
-                        try:
-                            info = api.model_info(
-                                model,
-                                expand=["inferenceProviderMapping"]
-                            )
-
-                            mapping = getattr(
-                                info,
-                                "inference_provider_mapping",
-                                None
-                            )
-
-                            if mapping:
-                                available.append(model)
-                                st.write(
-                                    f"Available: {model}"
+                    response = client.chat.completions.create(
+                        model="llama-3.1-8b-instant",
+                        messages=[
+                            {
+                                "role": "system",
+                                "content": (
+                                    "You are a concise fact-checking "
+                                    "assistant."
                                 )
-
-                        except Exception as error:
-                            st.warning(
-                                f"Could not check {model}: "
-                                f"{type(error).__name__}"
-                            )
-
-                if available:
-                    st.success(
-                        f"Found {len(available)} models "
-                        "with provider mappings."
+                            },
+                            {
+                                "role": "user",
+                                "content": (
+                                    "Which city is the Eiffel Tower "
+                                    "located in? Answer in one sentence."
+                                )
+                            }
+                        ],
+                        temperature=0,
+                        max_tokens=100
                     )
 
-                    client = InferenceClient(token=token)
+                answer = response.choices[0].message.content
 
-                    for model in available:
-                        try:
-                            response = client.chat_completion(
-                                model=model,
-                                messages=[
-                                    {
-                                        "role": "user",
-                                        "content": (
-                                            "Reply with only the city "
-                                            "where the Eiffel Tower is located."
-                                        )
-                                    }
-                                ],
-                                max_tokens=80
-                            )
+                st.success("Groq API connected successfully!")
+                st.write(answer)
 
-                            st.success(
-                                f"Working model: {model}"
-                            )
+                st.caption(
+                    "Model: llama-3.1-8b-instant"
+                )
 
-                            st.write(
-                                response.choices[0].message.content
-                            )
+        except Exception as error:
+            st.error(
+                f"{type(error).__name__}: {str(error)}"
+            )
 
-                            break
-
-                        except Exception as error:
-                            st.warning(
-                                f"{model}: "
-                                f"{type(error).__name__}: "
-                                f"{str(error)[:250]}"
-                            )
-                else:
-                    st.error(
-                        "No provider mappings found for "
-                        "the candidate models."
-                    )
 
         except Exception as error:
             st.error(
