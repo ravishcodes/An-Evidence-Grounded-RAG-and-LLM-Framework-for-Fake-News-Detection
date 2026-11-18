@@ -168,10 +168,11 @@ st.caption(
 
 
 
-# Temporary test: Groq hosted inference
+
+# Temporary test: Discover and test Groq models
 with st.expander("🔧 Test Groq LLM Connection"):
 
-    if st.button("Test Groq API"):
+    if st.button("Find Working Groq Model"):
 
         try:
             from groq import Groq
@@ -179,50 +180,96 @@ with st.expander("🔧 Test Groq LLM Connection"):
             token = st.secrets.get("GROQ_API_KEY")
 
             if not token:
-                st.error(
-                    "GROQ_API_KEY is missing from Streamlit Secrets."
-                )
+                st.error("GROQ_API_KEY is missing.")
 
             else:
                 client = Groq(api_key=token)
 
-                with st.spinner("Connecting to Groq..."):
+                with st.spinner("Fetching Groq models..."):
+                    models = client.models.list()
 
-                    response = client.chat.completions.create(
-                        model="llama-3.1-8b-instant",
-                        messages=[
-                            {
-                                "role": "system",
-                                "content": (
-                                    "You are a concise fact-checking "
-                                    "assistant."
-                                )
-                            },
-                            {
-                                "role": "user",
-                                "content": (
-                                    "Which city is the Eiffel Tower "
-                                    "located in? Answer in one sentence."
-                                )
-                            }
-                        ],
-                        temperature=0,
-                        max_tokens=100
+                available = [
+                    model.id
+                    for model in models.data
+                    if getattr(model, "active", True)
+                ]
+
+                st.success(
+                    f"Found {len(available)} active models."
+                )
+
+                with st.expander("Available model IDs"):
+                    for model_id in available:
+                        st.write(model_id)
+
+                # Prefer smaller general-purpose chat models.
+                preferred = [
+                    "llama-3.1-8b-instant",
+                    "llama-3.3-70b-versatile",
+                    "openai/gpt-oss-20b",
+                    "openai/gpt-oss-120b"
+                ]
+
+                ordered = [
+                    name for name in preferred
+                    if name in available
+                ]
+
+                if not ordered:
+                    st.warning(
+                        "No preferred chat model was found. "
+                        "Check the available model IDs."
                     )
 
-                answer = response.choices[0].message.content
+                else:
+                    for model_id in ordered:
 
-                st.success("Groq API connected successfully!")
-                st.write(answer)
+                        try:
+                            with st.spinner(
+                                f"Testing {model_id}..."
+                            ):
+                                response = (
+                                    client.chat.completions.create(
+                                        model=model_id,
+                                        messages=[
+                                            {
+                                                "role": "user",
+                                                "content": (
+                                                    "Which city is the "
+                                                    "Eiffel Tower located in? "
+                                                    "Answer briefly."
+                                                )
+                                            }
+                                        ],
+                                        temperature=0,
+                                        max_tokens=100
+                                    )
+                                )
 
-                st.caption(
-                    "Model: llama-3.1-8b-instant"
-                )
+                            answer = (
+                                response.choices[0]
+                                .message.content
+                            )
+
+                            st.success(
+                                f"WORKING MODEL: {model_id}"
+                            )
+
+                            st.write(answer)
+                            break
+
+                        except Exception as error:
+                            st.warning(
+                                f"{model_id}: "
+                                f"{type(error).__name__}: "
+                                f"{str(error)[:200]}"
+                            )
 
         except Exception as error:
             st.error(
                 f"{type(error).__name__}: {str(error)}"
             )
+
 
 
         except Exception as error:
