@@ -72,6 +72,49 @@ a {color:#a5b4ff !important;}
 .verdict.partial {border-color:#886a38;background:#332a1d;} .verdict.partial .verdict-name {color:#f9d38b;}
 .verdict.unknown {border-color:#4a587b;background:#1a2740;} .verdict.unknown .verdict-name {color:#b5c9ff;}
 .footer-note {color:#8fa3c4; font-size:.78rem; line-height:1.6;}
+/* Accessibility fix: Streamlit's light-theme tokens were making labels dark on dark. */
+:root, [data-testid="stApp"], [data-testid="stSidebar"] {
+  --text-color: #F4F7FF;
+  --secondary-background-color: #111E37;
+  --background-color: #080D1B;
+  --primary-color: #8F9BFF;
+}
+[data-testid="stApp"] .stMarkdown,
+[data-testid="stApp"] .stMarkdown p,
+[data-testid="stApp"] .stMarkdown li,
+[data-testid="stApp"] .stMarkdown strong,
+[data-testid="stApp"] .stCaption,
+[data-testid="stApp"] [data-testid="stCaptionContainer"],
+[data-testid="stApp"] [data-testid="stWidgetLabel"],
+[data-testid="stApp"] [data-testid="stWidgetLabel"] p,
+[data-testid="stApp"] label,
+[data-testid="stApp"] label p,
+[data-testid="stApp"] h1,
+[data-testid="stApp"] h2,
+[data-testid="stApp"] h3,
+[data-testid="stApp"] h4,
+[data-testid="stSidebar"] .stMarkdown,
+[data-testid="stSidebar"] .stMarkdown p,
+[data-testid="stSidebar"] .stMarkdown strong,
+[data-testid="stSidebar"] [data-testid="stCaptionContainer"],
+[data-testid="stSidebar"] [data-testid="stCaptionContainer"] p {
+  color: #F4F7FF !important;
+  -webkit-text-fill-color: #F4F7FF !important;
+}
+[data-testid="stApp"] [data-testid="stCaptionContainer"],
+[data-testid="stApp"] [data-testid="stCaptionContainer"] p,
+[data-testid="stSidebar"] [data-testid="stCaptionContainer"],
+[data-testid="stSidebar"] [data-testid="stCaptionContainer"] p {color:#BBC9E5 !important;-webkit-text-fill-color:#BBC9E5 !important;}
+[data-testid="stTextArea"] textarea,
+[data-testid="stTextInput"] input,
+[data-testid="stNumberInput"] input {color:#FFFFFF !important;-webkit-text-fill-color:#FFFFFF !important;background-color:#111E37 !important;caret-color:#FFFFFF !important;}
+[data-testid="stTextArea"] textarea::placeholder,
+[data-testid="stTextInput"] input::placeholder {color:#B6C5E4 !important;-webkit-text-fill-color:#B6C5E4 !important;opacity:1 !important;}
+[data-testid="stSidebar"] {color:#F4F7FF !important;}
+[data-testid="stExpander"] summary, [data-testid="stExpander"] summary p {color:#F4F7FF !important;-webkit-text-fill-color:#F4F7FF !important;}
+[data-testid="stMetricLabel"] *, [data-testid="stMetricValue"] * {color:inherit !important;-webkit-text-fill-color:currentColor !important;}
+[data-testid="stButton"] button, [data-testid="stDownloadButton"] button {color:#F4F7FF !important;-webkit-text-fill-color:#F4F7FF !important;}
+[data-testid="stButton"] button p, [data-testid="stDownloadButton"] button p {color:inherit !important;-webkit-text-fill-color:currentColor !important;}
 @media(max-width:700px){.hero{padding:23px 19px}.block-container{padding-top:1rem}h1{font-size:2rem!important}}
 </style>
 """, unsafe_allow_html=True)
