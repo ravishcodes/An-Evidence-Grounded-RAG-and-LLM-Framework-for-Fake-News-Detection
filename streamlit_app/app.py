@@ -1,5 +1,6 @@
 """Streamlit research dashboard: live fact-checking plus transparent evidence diagnostics."""
 import json
+from html import escape
 import sys
 from pathlib import Path
 
@@ -116,6 +117,21 @@ a {color:#a5b4ff !important;}
 [data-testid="stButton"] button, [data-testid="stDownloadButton"] button {color:#F4F7FF !important;-webkit-text-fill-color:#F4F7FF !important;}
 [data-testid="stButton"] button p, [data-testid="stDownloadButton"] button p {color:inherit !important;-webkit-text-fill-color:currentColor !important;}
 @media(max-width:700px){.hero{padding:23px 19px}.block-container{padding-top:1rem}h1{font-size:2rem!important}}
+
+/* High contrast native widgets and accessible secondary text */
+[data-testid="stApp"] [data-testid="stCaptionContainer"] *, [data-testid="stSidebar"] [data-testid="stCaptionContainer"] * {color:#d0dbef !important;-webkit-text-fill-color:#d0dbef !important;opacity:1!important;}
+[data-testid="stHeader"] button, [data-testid="stToolbar"] button, [data-testid="stWidgetLabel"] svg, [data-testid="stExpander"] svg {color:#e3ebff!important;fill:currentColor;}
+[data-testid="stAlert"] {background:#24324b!important;border:1px solid #62779c!important;}
+[data-testid="stAlert"] *, [data-testid="stAlert"] p {color:#f5f7ff!important;-webkit-text-fill-color:#f5f7ff!important;}
+[data-testid="stFileUploaderDropzone"] {background:#17243d!important;color:#f4f7ff!important;}
+[data-testid="stFileUploaderDropzone"] * {color:#f4f7ff!important;}
+[data-testid="stMetricValue"] {font-size:clamp(1rem,2vw,1.5rem)!important;white-space:normal!important;overflow-wrap:anywhere;}
+[data-testid="stMetricLabel"] p {white-space:normal!important;}
+[data-testid="stSidebar"] hr {border-color:#354768;}
+.hero {padding:24px 28px;margin-bottom:12px;}
+.block-container {padding-top:3.5rem;max-width:1200px;}
+[data-testid="stTextArea"] textarea {border-color:#667ca6!important;}
+[data-testid="stExpander"] summary {padding:12px;}
 </style>
 """, unsafe_allow_html=True)
 
@@ -144,7 +160,8 @@ st.markdown("""<div class="hero">
 st.markdown('<div class="section-kicker">01 / Claim verification</div>', unsafe_allow_html=True)
 st.subheader("What would you like to fact-check?")
 claim = st.text_area("Enter a factual claim", height=140, placeholder="Example: The Eiffel Tower is located in Paris, France.", help="Enter one specific, verifiable claim (maximum 1,500 characters).")
-st.caption("Enter one specific claim. Live verification requires Tavily and Groq API keys configured in Streamlit Secrets.")
+st.caption("Use a specific, testable statement. Example: The Eiffel Tower is located in Berlin, Germany.")
+st.caption(f"{len(claim)} / 1,500 characters · Live web evidence · Automated citation audit")
 
 if st.button("🔎 Verify with Live Evidence", type="primary"):
     if not claim.strip():
@@ -154,6 +171,8 @@ if st.button("🔎 Verify with Live Evidence", type="primary"):
     elif not st.secrets.get("TAVILY_API_KEY") or not st.secrets.get("GROQ_API_KEY"):
         st.error("Configure TAVILY_API_KEY and GROQ_API_KEY in Streamlit Secrets.")
     else:
+        st.session_state.pop("rag_result", None)
+        st.session_state.pop("rag_claim", None)
         try:
             with st.spinner("Retrieving evidence, ranking passages, auditing citations, and verifying..."):
                 embedder, reranker = cached_rankers()
@@ -162,19 +181,21 @@ if st.button("🔎 Verify with Live Evidence", type="primary"):
             st.session_state["rag_result"] = result
             st.session_state["rag_claim"] = claim.strip()
         except Exception as exc:
-            st.error(f"Live verification failed: {type(exc).__name__}: {exc}")
+            if getattr(exc, "status_code", None) == 429:
+                st.warning("Groq is temporarily rate limited. Automatic retries were exhausted. Wait about one minute and try again. No verdict was generated.")
+            else:
+                st.error(f"Verification could not complete ({type(exc).__name__}). Check API configuration and service availability.")
 
-if "rag_result" in st.session_state:
+if "rag_result" in st.session_state and st.session_state.get("rag_claim") == claim.strip():
     result = st.session_state["rag_result"]
     diagnostics = result.get("diagnostics") or result_diagnostics(result)
     st.markdown('<div class="section-kicker">02 / Verification result</div>', unsafe_allow_html=True)
     st.subheader("Evidence-grounded verdict")
     verdict = result.get("verdict", "UNVERIFIED")
     verdict_class = "true" if verdict == "TRUE" else "false" if verdict == "FALSE" else "partial" if verdict in ("PARTIALLY_TRUE", "MISLEADING") else "unknown"
-    st.markdown(f'<div class="verdict {verdict_class}"><div class="verdict-label">AI VERIFICATION VERDICT</div><div class="verdict-name">{verdict.replace("_", " ")}</div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="verdict {verdict_class}"><div class="verdict-label">AI VERIFICATION VERDICT</div><div class="verdict-name">{escape(str(verdict).replace("_", " "))}</div></div>', unsafe_allow_html=True)
     st.caption("Claim: " + st.session_state.get("rag_claim", ""))
-    a, b, c, d = st.columns(4)
-    a.metric("Verdict", result.get("verdict", "UNVERIFIED").replace("_", " "))
+    b, c, d = st.columns(3)
     b.metric("Evidence strength index", f"{diagnostics['evidence_strength_index']}/100")
     c.metric("Audited / retrieved", f"{diagnostics['audited_sources']}/{diagnostics['retrieved_sources']}")
     d.metric("Cited sources", diagnostics["cited_sources"])
