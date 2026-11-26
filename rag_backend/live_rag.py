@@ -4,6 +4,8 @@ This is a deployment adaptation, not an exact reproduction of the Kaggle Qwen pi
 """
 import json
 import re
+import time
+import math
 from datetime import datetime, timezone
 from urllib.parse import urlparse
 
@@ -157,58 +159,57 @@ def retrieve_evidence(claim, tavily_key, embedder, reranker, limit=5):
     return result
 
 
-
-def safe_groq_json(client, model, messages, max_tokens=1500):
-    """Generate and parse JSON without Groq's strict JSON mode."""
+def safe_groq_json(client, model, messages, max_tokens=1200):
+    """Retry JSON-mode failures; fall back to plain text JSON parsing."""
     last_error = None
-
     for attempt in range(3):
         try:
-            response = client.chat.completions.create(
-                model=model,
-                messages=messages,
-                temperature=0,
-                max_tokens=max_tokens,
-            )
-
-            content = (
-                response.choices[0].message.content or ""
-            ).strip()
-
+            kwargs = dict(model=model, messages=messages, temperature=0,
+                          max_tokens=max_tokens)
+            if attempt == 0:
+                kwargs["response_format"] = {"type": "json_object"}
+            for rate_attempt in range(3):
+                try:
+                    response = client.chat.completions.create(**kwargs)
+                    break
+                except Exception as rate_exc:
+                    if getattr(rate_exc, "status_code", None) != 429 or rate_attempt == 2:
+                        raise
+                    headers = getattr(getattr(rate_exc, "response", None), "headers", {}) or {}
+                    try:
+                        delay = float(headers.get("retry-after", "nan"))
+                    except (ValueError, TypeError):
+                        delay = float("nan")
+                    if not math.isfinite(delay) or delay < 0:
+                        match = re.search(r"try again in\s+([0-9.]+)s", str(rate_exc), re.I)
+                        delay = float(match.group(1)) if match else 60.0
+                    if delay > 90:
+                        raise
+                    time.sleep(max(2.0, delay + 2.0))
+            content = (response.choices[0].message.content or "").strip()
             if content.startswith("```"):
-                content = re.sub(
-                    r"^```(?:json)?\s*|\s*```$",
-                    "",
-                    content,
-                    flags=re.IGNORECASE,
-                ).strip()
-
+                content = re.sub(r"^```(?:json)?\s*|\s*```$", "", content,
+                                 flags=re.IGNORECASE).strip()
             try:
                 parsed = json.loads(content)
             except json.JSONDecodeError:
-                decoder = json.JSONDecoder()
-                start = content.find("{")
-
-                if start == -1:
-                    raise ValueError("No JSON object returned")
-
-                parsed, _ = decoder.raw_decode(content[start:])
-
+                start, end = content.find("{"), content.rfind("}")
+                if start < 0 or end <= start:
+                    raise ValueError("No JSON object in model response")
+                parsed = json.loads(content[start:end + 1])
             if not isinstance(parsed, dict):
                 raise ValueError("Expected a JSON object")
-
             return parsed
-
         except Exception as exc:
-            if getattr(exc, "status_code", None) in (401, 403, 429):
+            # Do not retry authentication, rate limit or other non-format errors.
+            code = getattr(exc, "status_code", None)
+            if code in (401, 403, 429):
+                raise
+            if code == 400 and "json_validate_failed" not in str(exc):
                 raise
             last_error = exc
-
-    raise RuntimeError(
-        "Unable to obtain valid JSON after 3 attempts: "
-        f"{type(last_error).__name__}"
-    ) from last_error
-
+    raise RuntimeError("Groq could not produce valid JSON after 3 attempts: "
+                       f"{type(last_error).__name__}: {last_error}") from last_error
 
 
 def audit_evidence(claim, evidence, groq_key, model="openai/gpt-oss-20b"):
@@ -218,7 +219,7 @@ def audit_evidence(claim, evidence, groq_key, model="openai/gpt-oss-20b"):
     """
     if not evidence:
         return []
-    client = Groq(api_key=groq_key, timeout=60.0)
+    client = Groq(api_key=groq_key, timeout=60.0, max_retries=0)
     prompt = {
         "claim": claim,
         "task": "Evaluate each excerpt against the claim independently. Return one item per source. "
@@ -302,7 +303,7 @@ def verify_claim(claim, evidence, groq_key, model="openai/gpt-oss-20b", audited=
         "newly claimed discovery. Keep explanation under 130 words."
     )
     user = json.dumps({"claim": claim, "retrieved_at_utc": datetime.now(timezone.utc).isoformat(), "sources": payload}, ensure_ascii=False)
-    client = Groq(api_key=groq_key, timeout=60.0)
+    client = Groq(api_key=groq_key, timeout=60.0, max_retries=0)
     parsed = safe_groq_json(
         client, model,
         messages=[{"role": "system", "content": system},
